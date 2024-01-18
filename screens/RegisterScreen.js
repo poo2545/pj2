@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts, Kanit_400Regular } from '@expo-google-fonts/kanit';
 import DatePicker from '@react-native-community/datetimepicker';
 import { apiBaseUrl } from '../ApiConfig';
+import DropDownPicker from 'react-native-dropdown-picker';
 
 const RegisterScreen = () => {
   const [email, setEmail] = useState('');
@@ -27,6 +28,8 @@ const RegisterScreen = () => {
   const [height, setHeight] = useState('');
   const [diabetesType, setDiabetesType] = useState('');
   const [image, setImage] = useState(null);
+
+  const challengeCalorie = 2000 ;
   const navigation = useNavigation();
   const defaultProfileImage = 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png';
 
@@ -39,7 +42,7 @@ const RegisterScreen = () => {
 
   const handleRegister = () => {
     const user = {
-      name: name,
+      fullName: name,
       email: email,
       password: password,
       image: defaultProfileImage,
@@ -47,6 +50,7 @@ const RegisterScreen = () => {
       weight: weight,
       height: height,
       diabetesType: diabetesType,
+      challengeCalorie : challengeCalorie,
     };
     axios
       .post(`http://${apiBaseUrl}:8000/register`, user)

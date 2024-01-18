@@ -18,6 +18,7 @@ import { apiBaseUrl } from '../ApiConfig';
 const LoginScreen = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
   const navigation = useNavigation();
 
@@ -29,7 +30,6 @@ const LoginScreen = () => {
         if (token) {
           navigation.replace("Main");
         } else {
-          // token not found , show the login screen itself
         }
       } catch (error) {
         console.log("error", error);
@@ -60,6 +60,7 @@ const LoginScreen = () => {
         console.log("Login Error", error);
       });
   };
+  
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };

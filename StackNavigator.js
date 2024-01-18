@@ -7,28 +7,30 @@ import { FontAwesome5 } from '@expo/vector-icons';
 
 import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
+
 import HomeScreen from "./screensChat/HomeScreen";
 import FriendsScreen from "./screensChat/FriendsScreen";
 import ChatsScreen from "./screensChat/ChatsScreen";
 import ChatMessagesScreen from "./screensChat/ChatMessagesScreen";
+
 import WelcomeScreen from "./screens/WelcomeScreen";
-import JounalScreen from "./screens/JounalScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import HomePage from './screens/HomePage';
 import EditProfileScreen from './screens/EditProfile';
 import Breakfast from './JounalFoodScreens/Breakfast';
 import Breakfast2 from './components/Breakfast';
-import Lunch from './JounalFoodScreens/Lunch';
-import Dinner from './JounalFoodScreens/Dinner';
-import DairySave from './screens/DairySave';
-import Snack from "./JounalFoodScreens/Snack";
+
 import DragTest from './screens/DragTest';
 import RecommendFood from "./screens/RecommendFood";
 import RecommendFood2 from "./screens/RecommenFood2";
 
-import PatientMeal from "./components/PateinMeal";
 import Journal from "./screens/Journal";
-import EditMealScreen from './screens/EditMealScreen'
+
+
+import Conversation from "./Chat/Conversation";
+import Messages from "./Chat/Message";
+import Users from "./Chat/User";
+
 const StackNavigator = () => {
   const Stack = createNativeStackNavigator();
   return (
@@ -60,30 +62,8 @@ const StackNavigator = () => {
         <Stack.Screen name="EditProfileScreen"
           component={EditProfileScreen}
         />
-        <Stack.Screen name="Messages"
+        <Stack.Screen name="MessagesChat"
           component={ChatMessagesScreen}
-        />
-
-        <Stack.Screen name="Breakfast"
-          component={Breakfast}
-        />
-        <Stack.Screen name="Breakfast2"
-          component={Breakfast2}
-        />
-        <Stack.Screen name="Lunch"
-          component={Lunch}
-        />
-
-        <Stack.Screen name="Dinner"
-          component={Dinner}
-        />
-
-        <Stack.Screen name="Snake"
-          component={Snack}
-        />
-
-        <Stack.Screen name="DairySave"
-          component={DairySave}
         />
 
         <Stack.Screen name="DragTest"
@@ -97,16 +77,15 @@ const StackNavigator = () => {
           component={RecommendFood2}
         />
 
-        <Stack.Screen name="Journal"
-          component={JounalScreen}
+        <Stack.Screen name="Conversation"
+          component={Conversation}
           options={{ headerShown: false }}
         />
-
-        <Stack.Screen name="PatientMeal"
-          component={PatientMeal}
+        <Stack.Screen name="Messages"
+        component={Messages}
         />
-        <Stack.Screen name="EditMealScreen"
-          component={EditMealScreen}
+        <Stack.Screen name="Users"
+          component={Users}
         />
 
         <Stack.Screen name="Main"
@@ -136,31 +115,33 @@ function Main() {
         },
       }}
     >
+
       <Tab.Screen
         name="HomePage"
         component={HomePage}
         options={{
           tabBarIcon: ({ color }) => (
-            <FontAwesome5 name="home" size={24} color={color} /> // Change icon and size
+            <FontAwesome5 name="home" size={24} color={color} />
           ),
         }}
       />
+
       <Tab.Screen
         name="Jounal"
         component={Journal}
         options={{
           tabBarIcon: ({ color }) => (
-            <FontAwesome5 name="book" size={24} color={color} /> // Change icon and size
+            <FontAwesome5 name="book" size={24} color={color} />
           ),
         }}
       />
 
       <Tab.Screen
         name="Chat"
-        component={HomeScreen}
+        component={Conversation}
         options={{
           tabBarIcon: ({ color }) => (
-            <FontAwesome5 name="comment-alt" size={24} color={color} /> // Change icon and size
+            <FontAwesome5 name="comment-alt" size={24} color={color} />
           ),
         }}
       />
@@ -170,7 +151,7 @@ function Main() {
         component={DragTest}
         options={{
           tabBarIcon: ({ color }) => (
-            <FontAwesome5 name="book-medical" size={24} color={color} /> // Change icon and size
+            <FontAwesome5 name="book-medical" size={24} color={color} />
           ),
         }}
       />
@@ -180,7 +161,7 @@ function Main() {
         component={ProfileScreen}
         options={{
           tabBarIcon: ({ color }) => (
-            <FontAwesome5 name="user" size={24} color={color} /> // Change icon and size
+            <FontAwesome5 name="user" size={24} color={color} />
           ),
         }}
       />

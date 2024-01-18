@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema({
-  name: {
+  fullName: {
     type: String,
     required: true,
   },
@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema({
     required: true,
   },
   dateOfBirth: {
-    type: Date, // เพิ่มวันเดือนปีเกิด
+    type: Date,
     required: true,
   },
   weight: {
@@ -31,27 +31,13 @@ const userSchema = new mongoose.Schema({
     required: true,
   },
   diabetesType: {
-    type: String, // เพิ่มประเภทของเบาหวาน
+    type: String,
     required: true,
   },
-  freindRequests: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-  ],
-  friends: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-  ],
-  sentFriendRequests: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-  ],
+    challengeCalorie: {
+    type: Number,
+    required: true,
+  },
 });
 
 const User = mongoose.model("User", userSchema);
