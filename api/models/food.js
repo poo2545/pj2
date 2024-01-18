@@ -7,28 +7,26 @@ const foodSchema = new mongoose.Schema({
     required: true,
   },
   FoodProtein: {
-    type: String,
-    required: true,
+    type: Number,
   },
   FoodFat: {
-    type: String,
-    required: true,
+    type: Number,
   },
   FoodCarbo: {
-    type: String,
-    required: true,
+    type: Number,
   },
   FoodFiber: {
-    type: String,
-    required: true,
+    type: Number,
   },
   FoodCalorie: {
+    type: Number,
+  },
+  FoodImage:{
     type: String,
     required: true,
   },
 });
 
-// Create the Food model
 const Food = mongoose.model('Food', foodSchema);
 
 module.exports = Food;

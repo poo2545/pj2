@@ -531,7 +531,6 @@ const styles = StyleSheet.create({
     height: 45,
     width: '90%',
     marginTop: 10,
-
   },
   calendarIcon: {
     marginRight: 8, // ระยะห่างระหว่างไอคอนและ TextInput

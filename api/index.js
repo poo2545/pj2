@@ -31,16 +31,108 @@ app.listen(port, () => {
 });
 
 const User = require("./models/user");
-const Message = require("./models/message"); 
+const Conversations = require("./models/Conversations");
+const Messages = require("./models/Messages");
 
-//endpoint for registration of the user
+app.post('/conversation', async (req, res) => {
+  try {
+    const { senderId, receiverId } = req.body;
+    const newCoversation = new Conversations({ members: [senderId, receiverId] });
+    await newCoversation.save();
+    res.status(200).send('Conversation created successfully');
+  } catch (error) {
+    console.log(error, 'Error')
+  }
+})
+
+app.get('/conversations/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const conversations = await Conversations.find({ members: { $in: [userId] } });
+
+    const conversationUserData = await Promise.all(conversations.map(async (conversation) => {
+      const receiverId = conversation.members.find((member) => member !== userId);
+      const user = await User.findById(receiverId);
+      if (!user) {
+        return null;
+      }
+      return { user: { receiverId: user._id, email: user.email, fullName: user.fullName, image: user.image }, conversationId: conversation._id };
+    }));
+    const validConversations = conversationUserData.filter(conversation => conversation !== null);
+    res.status(200).json(validConversations);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+
+app.post('/message', async (req, res) => {
+  try {
+    const { conversationId, senderId, message, receiverId } = req.body;
+
+    if (!senderId || !message) return res.status(400).send('Please fill all required fields')
+    if (conversationId === 'new' && receiverId) {
+      const newCoversation = new Conversations({ members: [senderId, receiverId] });
+      await newCoversation.save();
+      const newMessage = new Messages({ conversationId: newCoversation._id, senderId, message });
+      await newMessage.save();
+      return res.status(200).send('Message sent successfully');
+    } else if (!conversationId && !receiverId) {
+      return res.status(400).send('Please fill all required fields');
+    }
+    const newMessage = new Messages({ conversationId, senderId, message });
+    await newMessage.save();
+    res.status(200).send('Message sent successfully');
+  } catch (error) {
+    console.log(error, 'Error')
+  }
+})
+
+app.get('/message/:conversationId', async (req, res) => {
+  try {
+    const checkMessages = async (conversationId) => {
+      console.log(conversationId, 'conversationId')
+      const messages = await Messages.find({ conversationId });
+      const messageUserData = Promise.all(messages.map(async (message) => {
+        const user = await User.findById(message.senderId);
+        return { user: { id: user._id, email: user.email, fullName: user.fullName, image: user.image }, message: message.message }
+      }));
+      res.status(200).json(await messageUserData);
+    }
+    const conversationId = req.params.conversationId;
+    if (conversationId === 'new') {
+      const checkConversation = await Conversations.find({ members: { $all: [req.query.senderId, req.query.receiverId] } });
+      if (checkConversation.length > 0) {
+        checkMessages(checkConversation[0]._id);
+      } else {
+        return res.status(200).json([])
+      }
+    } else {
+      checkMessages(conversationId);
+    }
+  } catch (error) {
+    console.log('Error', error)
+  }
+})
+
+app.get('users/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const users = await User.find({ _id: { $ne: userId } });
+    const usersData = Promise.all(users.map(async (user) => {
+      return { user: { email: user.email, fullName: user.fullName, receiverId: user._id } }
+    }))
+    res.status(200).json(await usersData);
+  } catch (error) {
+    console.log('Error', error)
+  }
+})
+
+
 app.post("/register", (req, res) => {
-  const { name, email, password, image , dateOfBirth , weight , height , diabetesType } = req.body;
-
-  // create a new User object
-  const newUser = new User({ name, email, password, image , dateOfBirth , weight , height , diabetesType });
-
-  // save the user to the database
+  const { fullName, email, password, image, dateOfBirth, weight, height, diabetesType, challengeCalorie } = req.body;
+  const newUser = new User({ fullName, email, password, image, dateOfBirth, weight, height, diabetesType, challengeCalorie });
   newUser
     .save()
     .then(() => {
@@ -52,14 +144,11 @@ app.post("/register", (req, res) => {
     });
 });
 
-//function to create a token for the user ฟังก์ชั่นสร้างโทเค็นให้กับผู้ใช้
+//สร้างโทเค็นให้กับผู้ใช้
 const createToken = (userId) => {
-  // Set the token payload ตั้งค่าเพย์โหลดโทเค็น
   const payload = {
     userId: userId,
   };
-
-  // Generate the token with a secret key and expiration time  สร้างโทเค็นด้วยรหัสลับและเวลาหมดอายุ
   const token = jwt.sign(payload, "Q$r2K6W8n!jCW%Zk", { expiresIn: "1h" });
 
   return token;
@@ -98,7 +187,6 @@ app.post("/login", (req, res) => {
     });
 });
 
-//endpoint to access all the users except the user who's is currently logged in! endpoint เพื่อเข้าถึงผู้ใช้ทั้งหมด ยกเว้นผู้ใช้ที่เข้าสู่ระบบอยู่ในปัจจุบัน!
 app.get("/users/:userId", (req, res) => {
   const loggedInUserId = req.params.userId;
 
@@ -112,216 +200,23 @@ app.get("/users/:userId", (req, res) => {
     });
 });
 
-//endpoint to send a request to a user เพื่อส่งคำขอไปยังผู้ใช้
-app.post("/friend-request", async (req, res) => {
-  const { currentUserId, selectedUserId } = req.body;
+app.get("/me/:userId", async (req, res) => {
+  const loggedInUserId = req.params.userId;
 
   try {
-    //update the recepient's friendRequestsArray!
-    await User.findByIdAndUpdate(selectedUserId, {
-      $push: { freindRequests: currentUserId },
-    });
+    const user = await User.findById(loggedInUserId);
 
-    //update the sender's sentFriendRequests array
-    await User.findByIdAndUpdate(currentUserId, {
-      $push: { sentFriendRequests: selectedUserId },
-    });
-
-    res.sendStatus(200);
-  } catch (error) {
-    res.sendStatus(500);
-  }
-});
-
-//endpoint to show all the friend-requests of a particular user
-app.get("/friend-request/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    //fetch the user document based on the User id
-    const user = await User.findById(userId)
-      .populate("freindRequests", "name email image")
-      .lean();
-
-    const freindRequests = user.freindRequests;
-
-    res.json(freindRequests);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
-});
-
-//endpoint to accept a friend-request of a particular person
-app.post("/friend-request/accept", async (req, res) => {
-  try {
-    const { senderId, recepientId } = req.body;
-
-    //retrieve the documents of sender and the recipient
-    const sender = await User.findById(senderId);
-    const recepient = await User.findById(recepientId);
-
-    sender.friends.push(recepientId);
-    recepient.friends.push(senderId);
-
-    recepient.freindRequests = recepient.freindRequests.filter(
-      (request) => request.toString() !== senderId.toString()
-    );
-
-    sender.sentFriendRequests = sender.sentFriendRequests.filter(
-      (request) => request.toString() !== recepientId.toString
-    );
-
-    await sender.save();
-    await recepient.save();
-
-    res.status(200).json({ message: "Friend Request accepted successfully" });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
-});
-
-//endpoint to access all the friends of the logged in user!
-app.get("/accepted-friends/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const user = await User.findById(userId).populate(
-      "friends",
-      "name email image"
-    );
-    const acceptedFriends = user.friends;
-    res.json(acceptedFriends);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-const multer = require("multer");
-
-// Configure multer for handling file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "files/"); // Specify the desired destination folder
-  },
-  filename: function (req, file, cb) {
-    // Generate a unique filename for the uploaded file
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + "-" + file.originalname);
-  },
-});
-
-const upload = multer({ storage: storage });
-
-//endpoint to post Messages and store it in the backend endpoint เพื่อโพสต์ข้อความและเก็บไว้ในแบ็กเอนด์
-app.post("/messages", upload.single("imageFile"), async (req, res) => {
-  try {
-    const { senderId, recepientId, messageType, messageText } = req.body;
-
-    const newMessage = new Message({
-      senderId,
-      recepientId,
-      messageType,
-      message: messageText,
-      timestamp: new Date(),
-      imageUrl: messageType === "image" ? req.file.path : null,
-    });
-
-    await newMessage.save();
-    res.status(200).json({ message: "Message sent Successfully" });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-///endpoint to get the userDetails to design the chat Room header
-app.get("/user/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    //fetch the user data from the user ID
-    const recepientId = await User.findById(userId);
-
-    res.json(recepientId);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-//endpoint to fetch the messages between two users in the chatRoom
-app.get("/messages/:senderId/:recepientId", async (req, res) => {
-  try {
-    const { senderId, recepientId } = req.params;
-
-    const messages = await Message.find({
-      $or: [
-        { senderId: senderId, recepientId: recepientId },
-        { senderId: recepientId, recepientId: senderId },
-      ],
-    }).populate("senderId", "_id name");
-
-    res.json(messages);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-//endpoint to delete the messages!
-app.post("/deleteMessages", async (req, res) => {
-  try {
-    const { messages } = req.body;
-
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({ message: "invalid req body!" });
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+    } else {
+      res.status(200).json(user);
     }
-
-    await Message.deleteMany({ _id: { $in: messages } });
-
-    res.json({ message: "Message deleted successfully" });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "Internal Server" });
+  } catch (err) {
+    console.log("Error retrieving user", err);
+    res.status(500).json({ message: "Error retrieving user" });
   }
 });
 
-
-
-app.get("/friend-requests/sent/:userId",async(req,res) => {
-  try{
-    const {userId} = req.params;
-    const user = await User.findById(userId).populate("sentFriendRequests","name email image").lean();
-
-    const sentFriendRequests = user.sentFriendRequests;
-
-    res.json(sentFriendRequests);
-  } catch(error){
-    console.log("error",error);
-    res.status(500).json({ error: "Internal Server" });
-  }
-})
-
-app.get("/friends/:userId",(req,res) => {
-  try{
-    const {userId} = req.params;
-
-    User.findById(userId).populate("friends").then((user) => {
-      if(!user){
-        return res.status(404).json({message: "User not found"})
-      }
-
-      const friendIds = user.friends.map((friend) => friend._id);
-
-      res.status(200).json(friendIds);
-    })
-  } catch(error){
-    console.log("error",error);
-    res.status(500).json({message:"internal server error"})
-  }
-})
 
 app.get("/profile/:userId", async (req, res) => {
   try {
@@ -332,14 +227,17 @@ app.get("/profile/:userId", async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    // ดึงข้อมูลจาก user
-    const { image, dateOfBirth, weight, height, diabetesType, ...userData } = user.toObject();
 
-    return res.status(200).json({ user: userData, image, dateOfBirth, weight, height, diabetesType });
+    // ดึงข้อมูลจาก user
+    const { fullName,image,email,password, dateOfBirth, weight, height, diabetesType, challengeCalorie, ...userData } = user.toObject();
+
+    return res.status(200).json({ user: userData, fullName,email,password, dateOfBirth, weight, height, diabetesType, challengeCalorie,image });
   } catch (error) {
+    console.error("Error while getting the profile:", error);
     res.status(500).json({ message: "Error while getting the profile" });
   }
 });
+
 
 app.put('/profile/:userId', async (req, res) => {
   const userId = req.params.userId;
@@ -360,11 +258,7 @@ app.put('/profile/:userId', async (req, res) => {
   }
 });
 
-//Finish
-//food
-// Import the Food model or define it if not already done
-const Food =require("./models/food"); 
-// Define your API endpoint to fetch food data
+const Food = require("./models/food");
 app.get('/food', async (req, res) => {
   try {
     const foods = await Food.find();
@@ -378,6 +272,38 @@ app.get('/food', async (req, res) => {
   }
 });
 
+app.post('/food', async (req, res) => {
+  try {
+    // Assuming the request body contains the details of the new food
+    const { FoodName,
+      FoodCalorie,
+      FoodProtein,
+      FoodFat,
+      FoodCarbo,
+      FoodFiber,
+      FoodImage, } = req.body;
+
+    // Create a new food instance
+    const newFood = new Food({
+      FoodName,
+      FoodCalorie,
+      FoodProtein,
+      FoodFat,
+      FoodCarbo,
+      FoodFiber,
+      FoodImage,
+    });
+
+    // Save the new food record to the database
+    const savedFood = await newFood.save();
+
+    // Respond with the created food record
+    res.status(201).json(savedFood);
+  } catch (error) {
+    console.error('Error creating a new food record:', error);
+    res.status(500).json({ error: 'Unable to create a new food record' });
+  }
+});
 
 const Medication = require('./models/medication');
 //เพิ่ม
@@ -458,11 +384,10 @@ app.put('/medications/:id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 app.delete('/medications/:id', async (req, res) => {
   try {
     const medicationId = req.params.id;
-    
+
     // Find and delete the medication by ID
     const deletedMedication = await Medication.findByIdAndRemove(medicationId);
 
@@ -481,76 +406,83 @@ app.delete('/medications/:id', async (req, res) => {
 });
 
 
-  const MealPatient = require('./models/MealPatient');
-  app.post('/meals', async (req, res) => {
-    try {
-      const { date, BName, Bcalories, BProtein, BFat, BCarbohydrate, BFiber,
-              LName, Lcalories, LProtein, LFat, LCarbohydrate, LFiber,
-              DName, Dcalories, DProtein, DFat, DCarbohydrate, DFiber,
-              userId } = req.body;
-      console.log('Received request with data:', req.body);
-  
-      if (!date || !userId) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
-  
-      const newMeal = new MealPatient({
-        Date: date,
-        BName: BName || '',
-        Bcalories: Bcalories || 0,
-        BProtein: BProtein || 0,
-        BFat: BFat || 0,
-        BCarbohydrate: BCarbohydrate || 0,
-        BFiber: BFiber || 0,
+const MealPatient = require('./models/MealPatient');
 
-        LName: LName || '',
-        Lcalories: Lcalories || 0,
-        LProtein: LProtein || 0,
-        LFat: LFat || 0,
-        LCarbohydrate: LCarbohydrate || 0,
-        LFiber: LFiber || 0,
+app.post('/meals', async (req, res) => {
+  try {
+    const { date, BName, Bcalories, BProtein, BFat, BCarbohydrate, BFiber,
+      LName, Lcalories, LProtein, LFat, LCarbohydrate, LFiber,
+      DName, Dcalories, DProtein, DFat, DCarbohydrate, DFiber,
+      userId } = req.body;
 
-        DName: DName || '',
-        Dcalories: Dcalories || 0,
-        DProtein: DProtein || 0,
-        DFat: DFat || 0,
-        DCarbohydrate: DCarbohydrate || 0,
-        DFiber: DFiber || 0,
-
-        user: userId,
-      });
-      const savedMeal = await newMeal.save();
-      res.status(201).json(savedMeal);
-    } catch (error) {
-      console.error('Error saving meal:', error.message);
-      res.status(500).json({ error: 'Internal Server Error', message: error.message });
+    if (!date || !userId) {
+      return res.status(400).json({ error: 'Missing required fields' });
     }
-  });
-  
-  app.get('/meals/:userId/:date', async (req, res) => {
-    try {
-      const userId = req.params.userId;
-      const date = new Date(req.params.date);
 
-      const meals = await MealPatient.find({ user: userId, Date: date });
+    // Fetch user details based on userId
+    const user = await User.findById(userId);
 
-      res.status(200).json(meals);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal Server Error' });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
     }
-  });
+
+    const newMeal = new MealPatient({
+      Date: date,
+      BName: BName || '',
+      Bcalories: Bcalories || 0,
+      BProtein: BProtein || 0,
+      BFat: BFat || 0,
+      BCarbohydrate: BCarbohydrate || 0,
+      BFiber: BFiber || 0,
+
+      LName: LName || '',
+      Lcalories: Lcalories || 0,
+      LProtein: LProtein || 0,
+      LFat: LFat || 0,
+      LCarbohydrate: LCarbohydrate || 0,
+      LFiber: LFiber || 0,
+
+      DName: DName || '',
+      Dcalories: Dcalories || 0,
+      DProtein: DProtein || 0,
+      DFat: DFat || 0,
+      DCarbohydrate: DCarbohydrate || 0,
+      DFiber: DFiber || 0,
+
+      user: userId,
+      fullName: user.fullName, // Add fullName from the user details
+    });
+
+    const savedMeal = await newMeal.save();
+    res.status(201).json(savedMeal);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  }
+});
+
+
+app.get('/meals/:userId/:date', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const date = new Date(req.params.date);
+
+    const meals = await MealPatient.find({ user: userId, Date: date });
+
+    res.status(200).json(meals);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
 app.delete('/meals/:mealId', async (req, res) => {
   try {
     const mealId = req.params.mealId;
 
     const deletedMeal = await MealPatient.findByIdAndRemove(mealId);
-
     if (!deletedMeal) {
       return res.status(404).json({ error: 'Meal not found' });
     }
-
     res.status(200).json({ message: 'Meal deleted successfully' });
   } catch (error) {
     console.error(error);
@@ -562,16 +494,15 @@ app.put('/meals/:mealId', async (req, res) => {
   try {
     const mealId = req.params.mealId;
     const updatedMealData = req.body;
-
     // Check if the meal with the specified ID exists
     const existingMeal = await MealPatient.findById(mealId);
     if (!existingMeal) {
       return res.status(404).json({ error: 'Meal not found' });
     }
-
     // Update meal data
     Object.assign(existingMeal, updatedMealData);
-
+    // Recalculate SumCalorie
+    existingMeal.SumCalorie = existingMeal.Bcalories + existingMeal.Lcalories + existingMeal.Dcalories;
     // Save the updated meal
     const updatedMeal = await existingMeal.save();
 
@@ -585,9 +516,19 @@ app.put('/meals/:mealId', async (req, res) => {
 app.get('/meals/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
-  
     const meals = await MealPatient.find({ user: userId });
     res.status(200).json(meals);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+const noFood = require('./models/noFood'); // Adjust the path accordingly
+app.get('/nofood', async (req, res) => {
+  try {
+    const noFoods = await noFood.find();
+    res.status(200).json(noFoods);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal Server Error' });

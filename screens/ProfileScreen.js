@@ -10,6 +10,17 @@ import NutrientsGraph from '../components/NutrientsGraph';
 import { apiBaseUrl } from '../ApiConfig';
 
 const ProfileScreen = () => {
+  const { userId, setUserId } = useContext(UserType);
+  const navigation = useNavigation();
+  const [user, setUser] = useState({});
+  const [userImage, setUserImage] = useState(null);
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [weight, setWeight] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [height, setHeight] = useState("");
+  const [diabetesType, setDiabetesType] = useState("");
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -21,24 +32,16 @@ const ProfileScreen = () => {
           <TouchableOpacity onPress={logout}>
             <Ionicons name="log-out-outline" size={24} color="#000000" />
           </TouchableOpacity>
+          <TouchableOpacity onPress={handleRefresh}>
+            <Ionicons name="refresh-outline" size={24} color="#000000" />
+          </TouchableOpacity>
         </View>
       ),
       headerStyle: {
         backgroundColor: '#FFFFFF',
       },
     });
-  }, []);
-
-
-  const [user, setUser] = useState({});
-  const [userImage, setUserImage] = useState(null);
-  const [dateOfBirth, setDateOfBirth] = useState("");
-  const [weight, setWeight] = useState("");
-  const [height, setHeight] = useState("");
-  const [diabetesType, setDiabetesType] = useState("");
-  const navigation = useNavigation();
-  const { userId, setUserId } = useContext(UserType);
-
+  }, [navigation, handleRefresh]);
 
   const logout = () => {
     clearAuthToken();
@@ -49,44 +52,39 @@ const ProfileScreen = () => {
     console.log("Cleared auth token");
     navigation.replace("Login");
   }
-
   const editProfile = () => {
-    // You can navigate to the profile editing screen here.
     navigation.navigate("EditProfileScreen");
-  }
-
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  };
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await fetchProfile(userId);
     setIsRefreshing(false);
   };
-
-
   useEffect(() => {
     fetchProfile(userId);
-  }, []);
- 
-    const fetchProfile = async () => {
-      try {
-        const response = await axios.get(
-          `http://${apiBaseUrl}:8000/profile/${userId}`
-        );
-        const { user, image, dateOfBirth, weight, height, diabetesType } = response.data;
+  }, [userId]);
 
-        setUser(user);
-        setUserImage(image);
-        setDateOfBirth(dateOfBirth);
-        setHeight(height);
-        setWeight(weight);
-        setDiabetesType(diabetesType);
-        fetchProfile(userId);
-      } catch (error) {
-        console.log("error", error);
-      }
-    };
+  const fetchProfile = async () => {
+    try {
+      const response = await axios.get(
+        `http://${apiBaseUrl}:8000/profile/${userId}`
+      );
+      const { user, fullName, image, dateOfBirth, weight, height, diabetesType } = response.data;
 
-  // นี้เป็นฟังก์ชันที่ใช้ในการคำนวณอายุ
+      setUser(user);
+      setUserImage(image);  // Ensure that this is correctly set
+      setFullName(fullName);
+      setDateOfBirth(dateOfBirth);
+      setHeight(height);
+      setWeight(weight);
+      console.log('img', response.data);
+      setDiabetesType(diabetesType);
+    } catch (error) {
+      console.log("error", error);
+    }
+  };
+
+
   const calculateAge = (dateOfBirth) => {
     if (!dateOfBirth) return "ไม่ระบุ";
     const birthDate = new Date(dateOfBirth);
@@ -103,7 +101,6 @@ const ProfileScreen = () => {
     return age;
   };
 
-  // คำนวณค่า BMI
   const calculateBMI = () => {
     if (!weight || !height) {
       return "ไม่สามารถคำนวณได้";
@@ -121,54 +118,47 @@ const ProfileScreen = () => {
     }
   };
 
-  // สร้างฟังก์ชัน renderBMI เพื่อแสดงค่า BMI ในหน้า View
   const renderBMI = () => (
     <Text style={styles.bio}>BMI: {calculateBMI()}</Text>
   );
 
-  
   return (
     <SafeAreaView style={styles.container}>
+
+
       <View style={styles.medicationContainer}>
         <View style={styles.leftContainer}>
-          <Image
-            style={styles.profileImage}
-            source={{ uri: userImage }}
-          />
-          <Text style={{ fontSize: 20, fontFamily: 'Kanit_400Regular' }}>{user?.name}</Text>
-
+      <Image
+        style={styles.profileImage}
+        source={{ uri: userImage }}
+      />
+          <Text style={{ fontSize: 20, fontFamily: 'Kanit_400Regular' }}>{fullName}</Text>
           <Text style={styles.bio}>อายุ {calculateAge(dateOfBirth)} ปี</Text>
-          <Text style={styles.bio}> {renderBMI()} </Text>
+          <Text style={styles.bio}>{renderBMI()}</Text>
         </View>
         <View style={styles.rightContainer}>
-          <Text style={styles.bio}>
-            น้ำหนัก {weight} กิโลกรัม
-          </Text>
-          <Text style={styles.bio}>
-            ส่วนสูง {height} เซนติเมตร
-          </Text>
-          <Text style={styles.bio}>เบาหวาน:{diabetesType}</Text>
+          <Text style={styles.bio}>น้ำหนัก {weight} กิโลกรัม</Text>
+          <Text style={styles.bio}>ส่วนสูง {height} เซนติเมตร</Text>
+          <Text style={styles.bio}>เบาหวาน: {diabetesType}</Text>
           <Pressable
-            style={{ justifyContent: "center", alignItems: "center", padding: 10, borderColor: "#D0D0D0", borderWidth: 1, borderRadius: 5 }}
+            style={{ justifyContent: "center", alignItems: "center", padding: 10, borderColor: "#D0D0D0", borderWidth: 1, borderRadius: 5, marginBottom: 10 }}
             onPress={editProfile}
           >
             <Text>Edit Profile</Text>
           </Pressable>
         </View>
-
       </View>
       <View style={styles.graph}>
         <View style={styles.containerGraph}>
-          <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: 8 }}>
-            <Text style={{ color: '#8B8383', fontSize: 20, fontFamily: 'Kanit_400Regular', marginTop: 8 }}>ปริมาณแคลอรี่ที่ได้รับต่อวัน</Text>
+          <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: 20 }}>
             <NutrientsGraph />
           </View>
         </View>
       </View>
-
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -177,8 +167,8 @@ const styles = StyleSheet.create({
   },
   medicationContainer: {
     flexDirection: 'row',
-    width: '90%',
-    height: '40%',
+    width: '95%',
+    height: '32%',
     backgroundColor: 'white',
     borderRadius: 10,
     alignItems: 'center',
@@ -215,11 +205,11 @@ const styles = StyleSheet.create({
   },
   graph: {
     width: '95%',
-    height: '50%',
+    height: '60%',
     backgroundColor: 'white',
     borderRadius: 10,
     alignItems: 'center',
-    marginTop: 15,
+    marginTop: 10,
   },
   containerGraph: {
     flex: 1,

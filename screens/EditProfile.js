@@ -5,8 +5,8 @@ import axios from "axios";
 import { UserType } from "../UserContext";
 import { apiBaseUrl } from '../ApiConfig';
 
-const EditProfileScreen = ({ navigation }) => {
 
+const EditProfileScreen = ({ navigation }) => {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerTitle: () => (
@@ -18,12 +18,17 @@ const EditProfileScreen = ({ navigation }) => {
     });
   }, []);
 
-
-  const [editedUser, setEditedUser] = useState({});
   const { userId, setUserId } = useContext(UserType);
-  const [userImage, setUserImage] = useState(null);
+  const [image, setUserImage] = useState(null);
+  const [fullName, setFullName] = useState("");
+  const [weight, setWeight] = useState("");
+  const [height, setHeight] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [diabetesType, setDiabetesType] = useState("");
+  const [challengeCalorie, setChallengeCalorie] = useState("");
 
-  
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -31,29 +36,44 @@ const EditProfileScreen = ({ navigation }) => {
       aspect: [1, 1],
       quality: 1,
     });
-  
+
     if (!result.cancelled && result.assets && result.assets.length > 0) {
-      // Use the first selected asset's URI from the assets array
       const selectedImageUri = result.assets[0].uri;
-  
-      // Update editedUser state with the newly selected image URI
-      setEditedUser({ ...editedUser, image: selectedImageUri });
-  
-      // Update userImage state with the newly selected image URI
       setUserImage(selectedImageUri);
     }
   };
-  
+
   const saveChanges = () => {
+    const updatedProfile = {
+      fullName,
+      weight: parseFloat(weight),
+      height: parseFloat(height),
+      dateOfBirth,
+      email,
+      password,
+      image,
+      diabetesType,
+      challengeCalorie,
+    };
+
     axios
-      .put(`http://${apiBaseUrl}:8000/profile/${userId}`, editedUser)
+      .put(`http://${apiBaseUrl}:8000/profile/${userId}`, updatedProfile)
       .then((response) => {
         navigation.navigate("Profile");
       })
       .catch((error) => {
         console.log("Error updating profile:", error);
       });
+      alert({
+        title: "แก้ไขสำเร็จ",
+        message: "ข้อมูลของคุณได้รับการแก้ไขเรียบร้อยแล้ว",
+        buttons: [{ text: "ตกลง" }],
+        type: 'success', // You can customize the alert type
+        style: { backgroundColor: '#52B788' }, // Customize the background color
+        textStyle: { color: 'white' }, // Customize the text color
+      });
   };
+
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -61,50 +81,120 @@ const EditProfileScreen = ({ navigation }) => {
         const response = await axios.get(
           `http://${apiBaseUrl}:8000/profile/${userId}`
         );
-        const { image } = response.data;
+        const {
+          fullName,
+          email,
+          password,
+          image,
+          dateOfBirth,
+          weight,
+          height,
+          diabetesType,
+          challengeCalorie,
+        } = response.data;
+
+        setFullName(fullName);
+        setEmail(email);
+        setPassword(password);
         setUserImage(image);
+        setDateOfBirth(dateOfBirth);
+        setWeight(weight);
+        setHeight(height);
+        setDiabetesType(diabetesType);
+        setChallengeCalorie(challengeCalorie);
+
+        console.log("profile weght", response.data);
       } catch (error) {
         console.log("error", error);
       }
     };
-
     fetchProfile();
   }, [userId]);
 
   return (
     <View style={styles.container}>
-      {userImage ? (
-        <Image style={styles.profileImage} source={{ uri: userImage }} />
-      ) : (
-        <Image source={{ uri: editedUser.image }} style={styles.profileImage} />
-      )}
-      <TouchableOpacity style={{ alignItems: 'center' }} onPress={pickImage}>
-        <Text style={{ color: '#969696', fontSize: 18, fontFamily: 'Kanit_400Regular', marginBottom: 5 }}>แก้ไขรูปภาพ</Text>
-      </TouchableOpacity>
+      <View style={styles.container2}>
+        {image ? (
+          <Image style={styles.profileImage} source={{ uri: image }} />
+        ) : (
+          <Image source={{ uri: image }} style={styles.profileImage} />
+        )}
 
-      <TextInput
-        style={styles.input}
-        placeholder="แก้ไขชื่อ-สกุล"
-        onChangeText={(text) => setEditedUser({ ...editedUser, name: text })}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="แก้ไขน้ำหนัก(kg)"
-        onChangeText={(text) => setEditedUser({ ...editedUser, weight: text })}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="แก้ไขส่วนสูง(cm)"
-        onChangeText={(text) => setEditedUser({ ...editedUser, height: text })}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="แก้ไขวันเดือนปีเกิด 00/00/00"
-        onChangeText={(text) => setEditedUser({ ...editedUser, dateOfBirth: text })}
-      />
-      <TouchableOpacity style={styles.button} onPress={saveChanges}>
-        <Text style={styles.buttonText}>บันทึกการแก้ไข</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={{ alignItems: 'center' }} onPress={pickImage}>
+          <Text style={{ color: '#969696', fontSize: 15, fontFamily: 'Kanit_400Regular', marginBottom: 5 }}>แก้ไขรูปภาพ</Text>
+        </TouchableOpacity>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>ชื่อ-สกุล</Text>
+          <TextInput
+            style={styles.input}
+            value={fullName}
+            onChangeText={(text) => setFullName(text)}
+            placeholder="กรอกชื่อของคุณที่นี่"
+          />
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>อีเมล</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChangeText={(text) => setEmail(text)}
+          />
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>รหัสผ่าน</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="รหัสผ่าน"
+            value={password}
+            onChangeText={(text) => setPassword(text)}
+          />
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label1}>น้ำหนัก</Text>
+          <TextInput
+            style={styles.input1}
+            value={weight.toString()}
+            onChangeText={(text) => setWeight(text)}
+          />
+          <Text style={styles.label1}>กิโลกรัม</Text>
+
+          <Text style={styles.label1}>ส่วนสูง</Text>
+          <TextInput
+            style={styles.input}
+            value={height.toString()}
+            onChangeText={(text) => setHeight(text)}
+          />
+          <Text style={styles.label1}>เซนติเมตร</Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>วัน เดือน ปีเกิด</Text>
+          <TextInput
+            style={styles.input}
+            value={dateOfBirth}
+            onChangeText={(text) => setDateOfBirth(text)}
+          />
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>ประเภทเบาหวาน</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="ประเภทเบาหวาน"
+            value={diabetesType}
+            onChangeText={(text) => setDiabetesType(text)}
+          />
+        </View>
+
+        <TouchableOpacity style={styles.button} onPress={saveChanges}>
+          <Text style={styles.buttonText}>บันทึก</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -112,25 +202,19 @@ const EditProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
     backgroundColor: '#C2FFD3',
+    padding: 20,
   },
-  profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+  container2: {
+    flex: 1,
     alignItems: 'center',
-    marginTop: 30,
-  },
-  input: {
-    backgroundColor: '#fff',
-    height: 50,
-    borderRadius: 5,
-    marginVertical: 10,
-    paddingHorizontal: 10,
-    width: '90%',
-    fontSize: 16,
-    fontFamily: 'Kanit_400Regular',
+  }, 
+  profileImage: {
+    width: 150,
+    height: 150,
+    borderRadius: 100,
+    alignItems: 'center',
+    marginTop: 5,
   },
   button: {
     width: '90%',
@@ -141,11 +225,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
   },
+
   buttonText: {
     color: '#FFF',
     fontSize: 18,
     fontFamily: 'Kanit_400Regular',
   },
+
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent:'center',
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 18,
+    marginRight: 20,
+    fontFamily: 'Kanit_400Regular',
+  },
+  label1: {
+    fontSize: 18,
+    marginRight: 10,
+    fontFamily: 'Kanit_400Regular',
+  },
+  input1: {
+    flex: 1,
+    fontSize: 18,
+    height: 50,
+    borderBottomWidth: 1,
+
+    paddingLeft: 1,
+    fontFamily: 'Kanit_400Regular',
+  },
+  input: {
+    flex: 1,
+    fontSize: 18,
+    height: 50,
+    borderBottomWidth: 1,
+    borderBottomColor: "gray",
+    paddingLeft: 1,
+    fontFamily: 'Kanit_400Regular',
+  },
+
 });
 
 export default EditProfileScreen;

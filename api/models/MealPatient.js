@@ -5,9 +5,14 @@ const MealSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
+  fullName: {
+    type: String,
+    required: true,
+  },
+
   BName: {
     type: String,
-    default: '',  // Set a default value
+    default: '', 
   },
   Bcalories: {
     type: Number,
@@ -27,7 +32,7 @@ const MealSchema = new mongoose.Schema({
   },
   LName: {
     type: String,
-    default: '',  // Set a default value
+    default: '', 
   },
   Lcalories: {
     type: Number,
@@ -47,7 +52,7 @@ const MealSchema = new mongoose.Schema({
   },
   DName: {
     type: String,
-    default: '',  // Set a default value
+    default: '', 
   },
   Dcalories: {
     type: Number,
@@ -65,6 +70,10 @@ const MealSchema = new mongoose.Schema({
   DFiber: {
     type: Number,
   },
+  SumCalorie: {
+    type: Number,
+    default: 0,
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -72,8 +81,11 @@ const MealSchema = new mongoose.Schema({
   },
 });
 
+MealSchema.pre('save', function(next) {
+  this.SumCalorie = this.Bcalories + this.Lcalories + this.Dcalories;
+  next();
+});
 
 const Meal = mongoose.model('Meal', MealSchema);
 
 module.exports = Meal;
-
